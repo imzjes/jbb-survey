@@ -58,10 +58,6 @@ def patch_vllm_wrapper(site: pathlib.Path) -> bool:
     src = target.read_text()
     original = src
 
-    old_import = (
-        'from vllm.model_executor.parallel_utils.parallel_state '
-        'import destroy_model_parallel'
-    )
     new_import = (
         'try:\n'
         '    from vllm.model_executor.parallel_utils.parallel_state import destroy_model_parallel\n'
@@ -72,8 +68,17 @@ def patch_vllm_wrapper(site: pathlib.Path) -> bool:
         '        def destroy_model_parallel():\n'
         '            pass'
     )
-    if old_import in src:
-        src = src.replace(old_import, new_import)
+
+    # Patch 1 (idempotent): only apply if the wrapped form is not already
+    # present. This guard prevents the bare `from vllm.model_executor...`
+    # substring inside the wrapped block from being matched on a second run.
+    if new_import not in src:
+        old_import = (
+            'from vllm.model_executor.parallel_utils.parallel_state '
+            'import destroy_model_parallel'
+        )
+        if old_import in src:
+            src = src.replace(old_import, new_import)
 
     old_call = 'self.model = vllm.LLM(model=self.hf_model_name)'
     new_call = (
