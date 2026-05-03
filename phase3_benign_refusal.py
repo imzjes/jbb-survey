@@ -100,8 +100,27 @@ def run(models: list[str], defenses: list[str], backend: str,
 
     goals, behaviors, categories = load_benign_prompts(limit)
 
+    raw_path = RESULTS_DIR / "phase3_raw.jsonl"
+    summary_path = RESULTS_DIR / "phase3_summary.json"
+    csv_path = RESULTS_DIR / "phase3_summary.csv"
+
+    existing_raw = utils.read_jsonl(raw_path)
+    prior_summary = (json.loads(summary_path.read_text())
+                     if summary_path.exists() else [])
+
     all_rows: list[dict] = []
     summary: list[dict] = []
+
+    def checkpoint() -> None:
+        write_jsonl(raw_path, existing_raw + all_rows)
+        summary_path.write_text(json.dumps(prior_summary + summary, indent=2))
+        with csv_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["phase", "model", "defense",
+                               "n_prompts", "n_refused", "refusal_rate"]
+            )
+            writer.writeheader()
+            writer.writerows(prior_summary + summary)
 
     eval_defenses: list[str | None] = list(defenses)
     if include_undefended:
@@ -148,28 +167,7 @@ def run(models: list[str], defenses: list[str], backend: str,
                 "refusal_rate": rate,
             })
             print(f"    -> refusal rate = {rate:.3f}  ({n_ref}/{n})")
-
-    raw_path = RESULTS_DIR / "phase3_raw.jsonl"
-    existing_raw = utils.read_jsonl(raw_path)
-    write_jsonl(raw_path, existing_raw + all_rows)
-
-    summary_path = RESULTS_DIR / "phase3_summary.json"
-    if summary_path.exists():
-        prior = json.loads(summary_path.read_text())
-    else:
-        prior = []
-    summary_path.write_text(json.dumps(prior + summary, indent=2))
-
-    csv_path = RESULTS_DIR / "phase3_summary.csv"
-    write_header = not csv_path.exists()
-    with csv_path.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["phase", "model", "defense",
-                           "n_prompts", "n_refused", "refusal_rate"]
-        )
-        if write_header:
-            writer.writeheader()
-        writer.writerows(summary)
+            checkpoint()
 
     print(f"\nWrote {raw_path}")
     print(f"Wrote {summary_path}")

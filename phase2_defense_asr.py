@@ -98,8 +98,30 @@ def run(models: list[str], attacks: list[str], defenses: list[str],
 
     api_key = get_together_api_key()  # Always needed for the judge.
 
+    raw_path = RESULTS_DIR / "phase2_raw.jsonl"
+    summary_path = RESULTS_DIR / "phase2_summary.json"
+    csv_path = RESULTS_DIR / "phase2_summary.csv"
+
+    # Read what is already on disk from prior runs so we can append, not
+    # overwrite. Captured once; we re-write the union after each defense
+    # iteration so a crash never wipes out completed work.
+    existing_raw = utils.read_jsonl(raw_path)
+    prior_summary = (json.loads(summary_path.read_text())
+                     if summary_path.exists() else [])
+
     all_rows: list[dict] = []
     summary: list[dict] = []
+
+    def checkpoint() -> None:
+        write_jsonl(raw_path, existing_raw + all_rows)
+        summary_path.write_text(json.dumps(prior_summary + summary, indent=2))
+        with csv_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["phase", "model", "attack", "defense",
+                               "n_prompts", "n_jailbroken", "asr"]
+            )
+            writer.writeheader()
+            writer.writerows(prior_summary + summary)
 
     for model in models:
         llm = build_llm(model, backend, api_key)
@@ -141,30 +163,7 @@ def run(models: list[str], attacks: list[str], defenses: list[str],
                     "asr": asr,
                 })
                 print(f"    -> ASR (defended) = {asr:.3f}  ({n_jb}/{n})")
-
-    raw_path = RESULTS_DIR / "phase2_raw.jsonl"
-    summary_path = RESULTS_DIR / "phase2_summary.json"
-    csv_path = RESULTS_DIR / "phase2_summary.csv"
-
-    # Append-friendly: combine with any existing rows so the cloud + GPU runs merge.
-    existing_raw = utils.read_jsonl(raw_path)
-    write_jsonl(raw_path, existing_raw + all_rows)
-
-    if summary_path.exists():
-        prior = json.loads(summary_path.read_text())
-    else:
-        prior = []
-    summary_path.write_text(json.dumps(prior + summary, indent=2))
-
-    write_header = not csv_path.exists()
-    with csv_path.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=["phase", "model", "attack", "defense",
-                           "n_prompts", "n_jailbroken", "asr"]
-        )
-        if write_header:
-            writer.writeheader()
-        writer.writerows(summary)
+                checkpoint()
 
     print(f"\nWrote {raw_path}")
     print(f"Wrote {summary_path}")
