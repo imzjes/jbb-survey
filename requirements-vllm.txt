@@ -1,7 +1,12 @@
-# Extra requirements for the local-inference path used in Phase 2
+# Extra requirements for the local-inference path used in Phase 2 / 3
 # (PerplexityFilter and EraseAndCheck rely on auxiliary local models).
 # Install on a CUDA host (e.g. Colab Pro) with:
-#   pip install -r requirements.txt -r requirements-vllm.txt
+#   uv pip install --python <venv>/bin/python -r requirements.txt -r requirements-vllm.txt
+#
+# Pins are tightened because newer transformers (>=4.50) removes the
+# fallback to torch's private `_register_pytree_node`, which breaks against
+# any torch <2.3. The pinned window below is a tested mutually-compatible
+# GPU stack.
+torch>=2.4.0,<2.6.0
+transformers>=4.46.0,<4.50.0
 jailbreakbench[vllm]>=1.0.0
-torch>=2.1.0
-transformers>=4.40.0
