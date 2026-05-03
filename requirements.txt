@@ -1,0 +1,11 @@
+jailbreakbench==1.0.0
+# JBB 1.0.0 imports litellm.llms.prompt_templates.factory, which only exists
+# in litellm < 1.49. Newer releases reorganised the module tree.
+litellm>=1.40.0,<1.49.0
+together>=1.2.0
+# torch 2.2.x was compiled against NumPy 1.x; pin to keep ABI compatible.
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0,<2.3.0
+matplotlib>=3.7.0
+tqdm>=4.66.0
+python-dotenv>=1.0.0

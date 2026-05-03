@@ -1,0 +1,7 @@
+# Extra requirements for the local-inference path used in Phase 2
+# (PerplexityFilter and EraseAndCheck rely on auxiliary local models).
+# Install on a CUDA host (e.g. Colab Pro) with:
+#   pip install -r requirements.txt -r requirements-vllm.txt
+jailbreakbench[vllm]>=1.0.0
+torch>=2.1.0
+transformers>=4.40.0
