@@ -9,4 +9,6 @@
 # GPU stack.
 torch>=2.4.0,<2.6.0
 transformers>=4.46.0,<4.50.0
+# cupy (vllm 0.3.3 dep) breaks against numpy 2.x; pin defensively here too.
+numpy>=1.24.0,<2.0.0
 jailbreakbench[vllm]>=1.0.0
