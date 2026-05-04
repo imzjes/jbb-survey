@@ -137,8 +137,15 @@ def run(models: list[str], attacks: list[str], defenses: list[str],
         llm = build_llm(model, backend, api_key)
         for attack in attacks:
             base_rows = load_attack_prompts(model, attack)
+            # JBB stores prompt=None when the attack failed to find adversarial
+            # text (e.g. PAIR vs Llama-2 yields 96 empties out of 100). Drop
+            # those: defense robustness is only meaningful on real attempts.
+            base_rows = [r for r in base_rows if r.prompt]
             if limit is not None:
                 base_rows = base_rows[:limit]
+            if not base_rows:
+                print(f"\n=== Phase 2 :: {model} :: {attack}: no non-empty artifact prompts, skipping ===")
+                continue
             prompts = [r.prompt for r in base_rows]
             behaviors = [r.behavior for r in base_rows]
             goals = [r.goal for r in base_rows]
