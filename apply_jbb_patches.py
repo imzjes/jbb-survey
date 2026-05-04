@@ -100,18 +100,44 @@ def patch_vllm_wrapper(site: pathlib.Path) -> bool:
 
 
 def patch_defense_hparams(site: pathlib.Path) -> bool:
-    """Patch 3: replace hard-coded local model path with public HF id."""
+    """Patch 3: replace hard-coded local paths with sensible public defaults.
+
+    EraseAndCheck.tokenizer_path -> meta-llama/Llama-2-7b-chat-hf (tokenizer
+    only, negligible VRAM).
+
+    PerplexityFilter.perplexity_model_path -> gpt2 (the canonical literature
+    baseline). Using a second Llama-2-7B here OOMs alongside the vllm-served
+    target model on a 24 GB L4 -- and gpt2 is what the original SmoothLLM /
+    PerplexityFilter papers compare against, so this also matches convention.
+    """
     target = site / 'jailbreakbench/defenses/defenselib/defense_hparams.py'
     if not target.exists():
         print(f'  skip: {target} not found')
         return False
 
     src = target.read_text()
-    old_path = '/shared_data0/arobey1/llama-2-7b-chat-hf'
-    new_path = 'meta-llama/Llama-2-7b-chat-hf'
-    if old_path in src:
-        target.write_text(src.replace(old_path, new_path))
-        print('  patched defense_hparams paths')
+    original = src
+
+    # tokenizer_path: send to the public HF model id.
+    src = src.replace(
+        '_hparam("tokenizer_path", "/shared_data0/arobey1/llama-2-7b-chat-hf")',
+        '_hparam("tokenizer_path", "meta-llama/Llama-2-7b-chat-hf")',
+    )
+
+    # perplexity_model_path: substitute gpt2 from either the original local
+    # path or our earlier (now superseded) HF substitution.
+    src = src.replace(
+        '_hparam("perplexity_model_path", "/shared_data0/arobey1/llama-2-7b-chat-hf")',
+        '_hparam("perplexity_model_path", "gpt2")',
+    )
+    src = src.replace(
+        '_hparam("perplexity_model_path", "meta-llama/Llama-2-7b-chat-hf")',
+        '_hparam("perplexity_model_path", "gpt2")',
+    )
+
+    if src != original:
+        target.write_text(src)
+        print('  patched defense_hparams (tokenizer + perplexity model)')
         return True
     print('  defense_hparams already patched')
     return False

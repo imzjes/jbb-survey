@@ -112,6 +112,10 @@ def run(models: list[str], attacks: list[str], defenses: list[str],
     all_rows: list[dict] = []
     summary: list[dict] = []
 
+    # Resume support: skip (model, attack, defense) tuples already on disk.
+    done = {(s.get("model"), s.get("attack"), s.get("defense"))
+            for s in prior_summary if s.get("phase") == 2}
+
     def checkpoint() -> None:
         write_jsonl(raw_path, existing_raw + all_rows)
         summary_path.write_text(json.dumps(prior_summary + summary, indent=2))
@@ -124,6 +128,12 @@ def run(models: list[str], attacks: list[str], defenses: list[str],
             writer.writerows(prior_summary + summary)
 
     for model in models:
+        # Skip the model entirely if every (attack, defense) is already done.
+        pending = [(a, d) for a in attacks for d in defenses
+                   if (model, a, d) not in done]
+        if not pending:
+            print(f"\n=== Phase 2 :: {model} :: all combinations cached, skipping vllm load ===")
+            continue
         llm = build_llm(model, backend, api_key)
         for attack in attacks:
             base_rows = load_attack_prompts(model, attack)
@@ -134,6 +144,9 @@ def run(models: list[str], attacks: list[str], defenses: list[str],
             goals = [r.goal for r in base_rows]
 
             for defense in defenses:
+                if (model, attack, defense) in done:
+                    print(f"\n=== Phase 2 :: {model} :: {attack} :: {defense}: cached, skipping ===")
+                    continue
                 print(f"\n=== Phase 2 :: {model} :: {attack} :: {defense} ===")
                 t0 = now()
                 responses = query_with_defense(llm, prompts, behaviors, defense)

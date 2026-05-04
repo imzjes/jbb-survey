@@ -111,6 +111,9 @@ def run(models: list[str], defenses: list[str], backend: str,
     all_rows: list[dict] = []
     summary: list[dict] = []
 
+    done = {(s.get("model"), s.get("defense"))
+            for s in prior_summary if s.get("phase") == 3}
+
     def checkpoint() -> None:
         write_jsonl(raw_path, existing_raw + all_rows)
         summary_path.write_text(json.dumps(prior_summary + summary, indent=2))
@@ -127,8 +130,16 @@ def run(models: list[str], defenses: list[str], backend: str,
         eval_defenses = [None, *eval_defenses]
 
     for model in models:
+        pending = [d for d in eval_defenses if (model, d) not in done]
+        if not pending:
+            print(f"\n=== Phase 3 :: {model} :: all combinations cached, skipping vllm load ===")
+            continue
         llm = build_llm(model, backend, api_key)
         for defense in eval_defenses:
+            if (model, defense) in done:
+                label = defense or "undefended"
+                print(f"\n=== Phase 3 :: {model} :: {label}: cached, skipping ===")
+                continue
             label = defense or "undefended"
             print(f"\n=== Phase 3 :: {model} :: {label} ===")
 
