@@ -10,11 +10,21 @@ Reads `results/phaseN_summary.json` and writes:
 from __future__ import annotations
 
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import numpy as np
+# Colab sets MPLBACKEND to a Jupyter-only backend that fails when this script
+# runs outside an IPython kernel. Force a non-interactive backend before
+# pyplot is imported so headless PDF output always works.
+os.environ.setdefault("MPLBACKEND", "Agg")
+if os.environ.get("MPLBACKEND", "").startswith("module://"):
+    os.environ["MPLBACKEND"] = "Agg"
+import matplotlib  # noqa: E402
+
+matplotlib.use("Agg", force=True)
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
 from utils import RESULTS_DIR
 
