@@ -6,6 +6,36 @@ framework. The scripts wrap the official `jailbreakbench` Python library to
 run three experimental phases against `vicuna-13b-v1.5` and
 `llama-2-7b-chat-hf`.
 
+## Quick reproduction (Colab Pro, ~2.5 hours)
+
+The fastest way to reproduce all phases end-to-end is the included Colab
+notebook:
+
+1. Open https://colab.research.google.com → File → Open notebook → GitHub
+   tab → enter `imzjes/jbb-survey` → select `colab_runner.ipynb`.
+2. Runtime → Change runtime type → **L4 GPU + High-RAM**.
+3. Add two Colab secrets (sidebar key icon, toggle "Notebook access" ON):
+   - `TOGETHER_API_KEY` – Together AI key (used for the substituted
+     Llama-3.3-70B-Turbo jailbreak / refusal judge).
+   - `HF_TOKEN` – HuggingFace token from an account that has been granted
+     access to the gated models `meta-llama/Llama-2-7b-chat-hf` and
+     `meta-llama/LlamaGuard-7b` (request access on each model's HF page;
+     approval is usually within minutes).
+4. Run cells 1 through 10 in order. Cell 10 zips and downloads
+   `results/` to your laptop.
+5. Disconnect the runtime when finished (Runtime → Disconnect runtime).
+
+Total wall-clock: ~5 minutes setup + ~5 minutes Phase 1 (CPU) +
+~80 minutes Phase 2 (GPU) + ~50 minutes Phase 3 (GPU) + ~30 seconds
+figures.
+
+The notebook applies a small set of in-place patches to the installed
+JailbreakBench package via `apply_jbb_patches.py`. These patches address
+upstream changes since JailbreakBench 1.0.0 was published (judge models
+de-listed from Together AI, vLLM API reorganization, hard-coded local
+filesystem paths in two defenses, etc.). The patches are documented at
+the top of `apply_jbb_patches.py`.
+
 ## Substitutions vs. the original benchmark
 
 Two API-side changes since the JailbreakBench paper was published forced
@@ -26,12 +56,14 @@ small substitutions; both are documented in the report:
 
 ```
 code/
-├── phase1_baseline_asr.py     # Phase 1: undefended ASR
+├── colab_runner.ipynb         # End-to-end Colab Pro runner (recommended path)
+├── apply_jbb_patches.py       # Idempotent patches to installed JBB 1.0.0
+├── phase1_baseline_asr.py     # Phase 1: undefended ASR (rejudge mode)
 ├── phase2_defense_asr.py      # Phase 2: ASR through test-time defenses
 ├── phase3_benign_refusal.py   # Phase 3: benign refusal rate
-├── make_figures.py            # Plots & LaTeX tables for the write-up
-├── utils.py                   # Shared config & artifact loaders
-├── requirements.txt           # Cloud (LiteLLM + Together AI) dependencies
+├── make_figures.py            # Plots and LaTeX tables for the write-up
+├── utils.py                   # Shared config and artifact loaders
+├── requirements.txt           # Core dependencies (LiteLLM + Together AI)
 ├── requirements-vllm.txt      # Extra deps for the local-inference path
 └── results/                   # Generated outputs (gitignored)
 ```
